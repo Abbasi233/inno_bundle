@@ -41,6 +41,11 @@ class ScriptBuilder {
   /// Creates a [ScriptBuilder] instance with the given [config] and [appDir].
   ScriptBuilder(this.config, this.appDir);
 
+  String _innoAppDest(String relative) {
+    final parts = relative.split(RegExp(r'[\\/]+')).where((part) => part.isNotEmpty && part != '.');
+    return '{app}\\${parts.join('\\')}';
+  }
+
   /// Generates the `[Setup]` section of the ISS script, containing metadata and
   /// configuration for the installer.
   String _setup() {
@@ -132,6 +137,19 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
         section += 'Source: "$filePath"; DestDir: "{app}"; '
             'Flags: ignoreversion\n';
       }
+    }
+
+    // additional dirs to copy to the installer build directory
+    for (final dir in config.dirs) {
+      final sourcePath = dir.absoluteSource(config.baseDir);
+      final sourceDir = Directory(sourcePath);
+      if (!sourceDir.existsSync()) {
+        continue;
+      }
+
+      final destDir = _innoAppDest(dir.resolvedDestination);
+      section += 'Source: "${sourceDir.absolute.path}\\*"; DestDir: "$destDir"; '
+          'Flags: ignoreversion recursesubdirs createallsubdirs\n';
     }
 
     // adding optional files from System32 (if they are available),

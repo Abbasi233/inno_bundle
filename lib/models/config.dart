@@ -21,6 +21,7 @@ import 'package:inno_bundle/models/cli_configs/inno_bundle_cli_config.dart';
 import 'package:inno_bundle/models/admin_mode.dart';
 import 'package:inno_bundle/models/build_arch.dart';
 import 'package:inno_bundle/models/build_type.dart';
+import 'package:inno_bundle/models/dir_entry.dart';
 import 'package:inno_bundle/models/file_entry.dart';
 import 'package:inno_bundle/models/language.dart';
 import 'package:inno_bundle/models/sign_tool.dart';
@@ -98,6 +99,9 @@ class Config {
   /// The mode for handling the Visual C++ Redistributable.
   final VcRedistMode vcRedist;
 
+  /// List of dirs to be included in the installer.
+  final List<DirEntry> dirs;
+
   /// List of files to be included in the installer.
   final List<FileEntry> files;
 
@@ -140,6 +144,7 @@ class Config {
   Config({
     required this.pubspecFile,
     required this.configFile,
+    required this.dirs,
     required this.files,
     required this.includedFileExts,
     required this.excludedFileExts,
@@ -358,6 +363,22 @@ class Config {
           "in $configName, only a list of file entries is allowed.");
     }
 
+    if (inno['dirs'] != null && inno['dirs'] is! List) {
+      CliLogger.exitError("inno_bundle.dirs attribute is invalid "
+          "in pubspec.yaml, only a list of dirs entries is allowed.");
+    }
+    final dirs = ((inno['dirs'] ?? []) as List)
+        .map((d) {
+          if (d == null) return null;
+
+          final dllError = DirEntry.validateConfig(d);
+          if (dllError != null) CliLogger.exitError(dllError);
+
+          return DirEntry.fromJson(d);
+        })
+        .whereType<DirEntry>()
+        .toList(growable: false);
+
     // merge dlls and files for backward compatibility, in later versions, the dlls attribute will be removed.
     final files = [...inno['dlls'] ?? [], ...(inno['files'] ?? [])]
         .map((file) {
@@ -410,6 +431,7 @@ class Config {
       signTool: signTool,
       arch: arch,
       vcRedist: vcRedist,
+      dirs: dirs,
       files: files,
       includedFileExts: includedFileExts,
       excludedFileExts: excludedFileExts,

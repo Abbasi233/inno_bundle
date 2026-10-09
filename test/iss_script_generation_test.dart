@@ -26,7 +26,11 @@ void main() {
       tempDir.deleteSync(recursive: true);
     });
 
-    Config _config({List<String> outputDir = const ['tmp', 'inno_out']}) {
+    Config _config({
+      List<String> outputDir = const ['tmp', 'inno_out'],
+      List<dynamic>? dirs,
+      Directory? baseDir,
+    }) {
       return Config.fromJson(
         {
           'name': 'my_app',
@@ -37,6 +41,7 @@ void main() {
         {
           'inno_bundle': {
             'id': '5ec949d0-0582-1e06-b073-b5d1161f6fff',
+            if (dirs != null) 'dirs': dirs,
           },
         },
         cliConfig: InnoBundleCliConfig(),
@@ -44,6 +49,7 @@ void main() {
         configFile: File(''),
         outputDir: outputDir,
         innoExec: File('test_iscc.exe'),
+        baseDir: baseDir,
       );
     }
 
@@ -82,6 +88,99 @@ void main() {
 
       expect(script, contains('ArchitecturesAllowed=x64compatible'));
       expect(script, contains('ArchitecturesInstallIn64BitMode=x64compatible'));
+    });
+
+    test('copies dir contents into [Files] when the source folder exists', () {
+      final assetsDir = Directory('${tempDir.path}\\assets\\animations');
+      assetsDir.createSync(recursive: true);
+      File('${assetsDir.path}\\idle.json').writeAsStringSync('{}');
+
+      final config = _config(
+        dirs: [
+          {'source': 'assets/animations'},
+        ],
+        baseDir: tempDir,
+      );
+      final builder = ScriptBuilder(config, appDir);
+
+      final script = builder.buildScript();
+      final sourcePath = assetsDir.absolute.path;
+
+      expect(
+        script,
+        contains(
+          'Source: "$sourcePath\\*"; DestDir: "{app}\\assets\\animations"; '
+          'Flags: ignoreversion recursesubdirs createallsubdirs',
+        ),
+      );
+      expect(script, contains('Name: "{app}\\assets\\animations"'));
+    });
+
+    test('uses source as destination when a dir entry is a plain string', () {
+      final assetsDir = Directory('${tempDir.path}\\assets\\animations');
+      assetsDir.createSync(recursive: true);
+      File('${assetsDir.path}\\idle.json').writeAsStringSync('{}');
+
+      final config = _config(
+        dirs: ['assets/animations'],
+        baseDir: tempDir,
+      );
+      final builder = ScriptBuilder(config, appDir);
+
+      final script = builder.buildScript();
+      final sourcePath = assetsDir.absolute.path;
+
+      expect(
+        script,
+        contains(
+          'Source: "$sourcePath\\*"; DestDir: "{app}\\assets\\animations"; '
+          'Flags: ignoreversion recursesubdirs createallsubdirs',
+        ),
+      );
+    });
+
+    test('copies dir contents to destination when it differs from source', () {
+      final assetsDir = Directory('${tempDir.path}\\assets\\animations');
+      assetsDir.createSync(recursive: true);
+      File('${assetsDir.path}\\idle.json').writeAsStringSync('{}');
+
+      final config = _config(
+        dirs: [
+          {
+            'source': 'assets/animations',
+            'destination': 'data/anims',
+          },
+        ],
+        baseDir: tempDir,
+      );
+      final builder = ScriptBuilder(config, appDir);
+
+      final script = builder.buildScript();
+      final sourcePath = assetsDir.absolute.path;
+
+      expect(
+        script,
+        contains(
+          'Source: "$sourcePath\\*"; DestDir: "{app}\\data\\anims"; '
+          'Flags: ignoreversion recursesubdirs createallsubdirs',
+        ),
+      );
+      expect(script, contains('Name: "{app}\\data\\anims"'));
+    });
+
+    test('does not copy dir contents when the source folder is absent', () {
+      final config = _config(
+        dirs: [
+          {'source': 'appdata'},
+        ],
+        baseDir: tempDir,
+      );
+      final builder = ScriptBuilder(config, appDir);
+
+      final script = builder.buildScript();
+
+      expect(script, contains('Name: "{app}\\appdata"'));
+      expect(script, isNot(contains('DestDir: "{app}\\appdata"')));
     });
   });
 }

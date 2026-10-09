@@ -96,6 +96,30 @@ inno_bundle:
     - Arabic
   admin: auto
   arch: x64_compatible
+  dirs:
+    # Additional project folders copied into the installer under {app}. Files and nested
+    # subfolders are included.
+    #
+    # An entry is either a path string, or a map:
+    #   source (required): folder to copy. A relative path is resolved from the
+    #     project root. An absolute path (a drive letter, such as C:\...) is
+    #     read from that exact location on disk, not from the project and not
+    #     from under {app}.
+    #   destination (optional): install path under {app}. When it is omitted,
+    #     the source path is used. A plain string is that case: destination
+    #     stays empty, so the folder keeps its source path inside {app}.
+    # A source folder that is not on disk is skipped.
+    #
+    # Installed at {app}\assets\images:
+    - assets/images
+    # Same result, written as a map (destination defaults to source):
+    - source: appdata
+    # Copied from assets/images, installed at {app}\data\images:
+    - source: assets/images
+      destination: data/images
+    # Read from C:\shared\branding on disk, copied into {app}\branding:
+    # - source: C:\shared\branding
+    #   destination: branding
   files:
     - path: msvcp140.dll
       source: system32
